@@ -61,16 +61,16 @@ start_link() ->
 
 -spec add_fact(atom(), fact()) -> ok.
 add_fact(Fact, Data) ->
-  gen_server:call(facts_bank, {add_fact, {Fact, Data}}).
+  gen_server:call(facts_bank, {add_fact, Fact, Data}).
 
 
 -spec remove_fact(atom(), fact()) -> ok.
 remove_fact(Fact, Data) ->
-  gen_server:call(facts_bank, {remove_fact, {Fact, Data}}).
+  gen_server:call(facts_bank, {remove_fact, Fact, Data}).
 
 -spec holds(atom(), fact()) -> boolean().
 holds(Fact, Data) ->
-    gen_server:call(facts_bank, {holds, {Fact, Data}}).
+    gen_server:call(facts_bank, {holds, Fact, Data}).
 
 
 -spec subscribe(atom(), fact(), pid()) -> ok.
@@ -120,22 +120,18 @@ handle_call({add_fact, Fact, Data}, _From, State) ->
         {reply, ok, NewState}
     end;
  
-handle_call({remove_fact, FactKey}, _From, State) ->
-    NewFacts = maps:put(FactKey, false, State#state.facts),
-    NewState = State#state{facts = NewFacts},
-    % push(fact_retracted, FactKey, NewState),
-    {reply, ok, NewState};
+handle_call({remove_fact, Fact, Data}, _From, State) ->
+    %% TODO
+    {reply, ok, State};
  
 %% Derived fact — evaluate the registered function against current facts
 handle_call({holds, Fact, Data}, _From, State) ->
     Result = case maps:find(Fact, State#state.facts) of
-        {ok, Fun} ->
-            Fun(sets:is_element(Data, maps:get(Fact, State#state.facts)));
-        error ->
-            {error}
+        {ok, Set} -> sets:is_element(Data, Set);
+        error     -> false
     end,
-    {reply, Result, State};
- 
+    {reply, Result, State}; 
+
 % handle_call({subscribe, Fact, Pid}, _From, State) ->
 %     Current = maps:get(Fact, State#state.subscribers, []),
 %     NewSubs = maps:put(Fact, [Pid | Current], State#state.subscribers),
