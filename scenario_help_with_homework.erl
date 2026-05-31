@@ -92,7 +92,9 @@ help_with_homework_duty(Parent, Child) ->
     #{name => help_with_homework,
       holder => {parent, Parent},
       claimant => {child, Child},
-      violated_when => fun() -> eflint:holds(homework_due, Child) end}.
+      violated_when => fun() -> eflint:holds(homework_due, Child) end,
+      subscribes_to => [{homework_due, Child}]
+      }.
 
 %%%======================================================================
 %%% Scenario
@@ -145,6 +147,9 @@ run() ->
     %% Duty should be gone
     io:format("~nDuty after help? ~p~n",
               [eflint:lookup_duty({help_with_homework, "Alice", "Bob"})]),
+
+    io:format("~n--- help(Alice, Bob) should be disabled ---~n"),
+    io:format("~p~n", [eflint:trigger(help, #{parent => "Alice", child => "Bob"})]),
 
     io:format("~n--- Final facts ---~n"),
     eflint:dump(),

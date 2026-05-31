@@ -58,6 +58,7 @@ init() ->
     ets:new(derivations, [set, public, named_table]),
     ets:new(duties,      [set, public, named_table]),
     ets:new(violations,  [set, public, named_table]),
+    ets:new(subscribers, [bag, public, named_table]),
     ok.
 
 %%%======================================================================
@@ -99,23 +100,36 @@ register_derivation(FactType, Fun) when is_atom(FactType), is_function(Fun, 1) -
 %%   eflint:add(application, {"Chloe", "solar panels"}).
 add(FactType, Value) when not is_tuple(Value) ->
     ets:insert(facts, {{FactType, Value}, true}),
-    notify_duties({added, FactType, Value}),
+    notify_subscribers({added, FactType, Value}),
     ok;
 add(FactType, Values) when is_tuple(Values) ->
     Key = list_to_tuple([FactType | tuple_to_list(Values)]),
     ets:insert(facts, {Key, true}),
-    notify_duties({added, FactType, Values}),
+    notify_subscribers({added, FactType, Values}),
     ok.
 
 %% Terminate a postulated fact.
 terminate(FactType, Value) when not is_tuple(Value) ->
     ets:delete(facts, {FactType, Value}),
-    notify_duties({terminated, FactType, Value}),
+    notify_subscribers({terminated, FactType, Value}),
     ok;
 terminate(FactType, Values) when is_tuple(Values) ->
     Key = list_to_tuple([FactType | tuple_to_list(Values)]),
     ets:delete(facts, Key),
-    notify_duties({terminated, FactType, Values}),
+    notify_subscribers({terminated, FactType, Values}),
+    ok.
+
+subscribe_fact(FactType, Value, Pid) when not is_tuple(Value) ->
+    ets:insert(subscribers, {{FactType, Value}, Pid}),
+    ok;
+subscribe_fact(FactType, Values, Pid) when is_tuple(Values) ->
+    FactKey = list_to_tuple([FactType | tuple_to_list(Values)]),
+    ets:insert(subscribers, {FactKey, Pid}),
+    ok.
+
+%% do this after a duty is terminated for example
+unsubscribe_duty_facts(Pid) ->
+    ets:match_delete(subscribers, {'_', Pid}),
     ok.
 
 %% Notify all active duty processes that a fact changed.
@@ -126,6 +140,21 @@ notify_duties(_Change) ->
         Pid ! {fact_changed, self(), Ref},
         Ref
     end, Duties),
+    lists:foreach(fun(Ref) ->
+        receive
+            {fact_changed_ack, Ref} -> demonitor(Ref, [flush]);
+            {'DOWN', Ref, process, _, _} -> ok
+        end
+    end, Refs).
+
+%% Notify all subscribers of a fact change.
+notify_subscribers(_Change) ->
+    Subscribers = ets:tab2list(subscribers),
+    Refs = lists:map(fun({_Key, Pid}) ->
+        Ref = monitor(process, Pid),
+        Pid ! {fact_changed, self(), Ref},
+        Ref
+    end, Subscribers),
     lists:foreach(fun(Ref) ->
         receive
             {fact_changed_ack, Ref} -> demonitor(Ref, [flush]);
@@ -377,6 +406,7 @@ normalize_related(Single) -> [Single].
 %%%       claimant      => {atom(), Value},    %% {role_type, actual_value}
 %%%       related_to    => [{atom(), Value}],  %% optional
 %%%       violated_when => fun() -> boolean()  %% zero-arity closure
+%%%       subscribes_to => [{atom(), Value}]   %% subscribe to facts
 %%%   }
 %%%
 %%% Duty key is derived from name + holder + claimant + related_to values.
@@ -404,6 +434,11 @@ lookup_duty(Key) ->
 
 duty_loop(DutyDef) ->
     Key = duty_key(DutyDef),
+    %% subscribe to fact changes relevant to this duty (could be optimized by tracking which facts are relevant based on the violated_when function, but we'll keep it simple for now)
+    FactsSubscriptions = maps:get(subscribes_to, DutyDef, []),
+    lists:foreach(fun({FactKey, Value}) ->
+        subscribe_fact(FactKey, Value, self())
+    end, FactsSubscriptions),
     %% Evaluate violation on entry (a relevant fact may already hold).
     check_and_record_violation(Key, DutyDef),
     duty_loop_inner(Key, DutyDef).
@@ -411,6 +446,7 @@ duty_loop(DutyDef) ->
 duty_loop_inner(Key, DutyDef) ->
     receive
         {fact_changed, From, Ref} ->
+            % io:format("Duty ~p received fact change notification~n", [Key]),
             check_and_record_violation(Key, DutyDef),
             From ! {fact_changed_ack, Ref},
             duty_loop_inner(Key, DutyDef);
@@ -418,6 +454,7 @@ duty_loop_inner(Key, DutyDef) ->
             From ! {violated_reply, ets:member(violations, Key)},
             duty_loop_inner(Key, DutyDef);
         terminate ->
+            unsubscribe_duty_facts(self()),
             unregister_duty(Key),
             ets:delete(violations, Key),
             ok;
