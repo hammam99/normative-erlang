@@ -2,8 +2,8 @@ This repo hosts the fiels uses to implmenent the translation of normative relati
 
 
 ## How to run:
-`
+```
 erlc eflint.erl scenario_help_with_homework.erl
 erl -noshell -s scenario_help_with_homework run -s init stop
 
-`
+```
