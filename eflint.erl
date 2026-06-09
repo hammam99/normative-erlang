@@ -285,11 +285,12 @@ act_loop(ActDef) ->
             case is_enabled(ActDef, Args) of
                 true -> From ! {act_result, Name, enabled};
                 false -> From ! {act_result, Name, disabled}
-            end;
+            end,
+            act_loop(ActDef);
         stop -> ok
     end.
 
-%% This function returns wheter an act is enabled. 
+%% This function returns whether an act is enabled. 
 is_enabled(ActDef, Args) ->
   pre_check(ActDef, Args)
   andalso check_holds_when(ActDef, Args)
