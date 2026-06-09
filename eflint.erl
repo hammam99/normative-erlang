@@ -34,6 +34,7 @@
     %% 3. Acts
     act_loop/1,
     trigger/2,
+    act_enabled/2,
 
     %% 4. Duties
     duty_loop/1,
@@ -268,9 +269,9 @@ holds_predicate(Name) ->
 %%%   {non_compliant, E} — holds_when passed but conditioned_by failed
 
 act_loop(ActDef) ->
+    Name = maps:get(name, ActDef),
     receive
         {trigger, Args, From} ->
-            Name = maps:get(name, ActDef),
             case run_act(ActDef, Args) of
                 {enabled, Effects} ->
                     From ! {act_result, Name, {enabled, Effects}};
@@ -280,8 +281,19 @@ act_loop(ActDef) ->
                     From ! {act_result, Name, disabled}
             end,
             act_loop(ActDef);
+        {is_enabled, Args, From} ->
+            case is_enabled(ActDef, Args) of
+                true -> From ! {act_result, Name, enabled};
+                false -> From ! {act_result, Name, disabled}
+            end;
         stop -> ok
     end.
+
+%% This function returns wheter an act is enabled. 
+is_enabled(ActDef, Args) ->
+  pre_check(ActDef, Args)
+  andalso check_holds_when(ActDef, Args)
+  andalso check_conditioned_by(ActDef, Args).
 
 run_act(ActDef, Args) ->
     case pre_check(ActDef, Args) of
@@ -390,6 +402,10 @@ execute(ActDef, Args) ->
 %% Synchronous trigger.
 trigger(ProcName, Args) when is_map(Args) ->
     ProcName ! {trigger, Args, self()},
+    receive {act_result, _Name, Result} -> Result end.
+
+act_enabled(ProcName, Args) when is_map(Args) ->
+    ProcName ! {is_enabled, Args, self()},
     receive {act_result, _Name, Result} -> Result end.
 
 normalize_related(List) when is_list(List) -> List;

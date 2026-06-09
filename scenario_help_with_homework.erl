@@ -150,6 +150,7 @@ run() ->
 
     io:format("~n--- help(Alice, Bob) should be disabled ---~n"),
     io:format("~p~n", [eflint:trigger(help, #{parent => "Alice", child => "Bob"})]),
+    io:format("~p~n", [eflint:act_enabled(help, #{parent => "Alice", child => "Bob"})]),
 
     io:format("~n--- Final facts ---~n"),
     eflint:dump(),
