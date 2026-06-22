@@ -45,7 +45,7 @@
     is_violated/1,
 
     %% 5. Debug
-    dump/0
+    dump/1
 ]).
 
 %%%======================================================================
@@ -500,12 +500,12 @@ is_violated(Key) ->
 %%% 5. Debug helpers
 %%%======================================================================
 
-dump() ->
-    io:format("--- facts ---~n"),
+dump(Table) ->
+    % io:format("--- facts ---~n"),
     ets:foldl(fun(Entry, _) ->
         io:format("  ~p~n", [Entry]),
         ok
-    end, ok, facts),
+    end, ok, Table),
     io:format("---~n"),
     ok.
 

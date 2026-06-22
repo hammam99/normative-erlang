@@ -109,7 +109,7 @@ run() ->
     register(help, spawn(eflint, act_loop, [help_act()])),
 
     io:format("~n--- Initial facts ---~n"),
-    eflint:dump(),
+    eflint:dump(facts),
 
     %% ?legal-parent(Alice, Bob).         → true
     io:format("~nlegal_parent(Alice, Bob)?    ~p~n",
@@ -124,13 +124,18 @@ run() ->
     io:format("legal_parent(Alice, David)? ~p (expected false)~n",
               [eflint:holds(legal_parent, {"Alice", "David"})]),
 
+    io:format("Is Help act enabled (false): ~p~n", [eflint:act_enabled(help, #{parent => "Alice", child => "Bob"})]),
+
     %% ask-for-help(Bob, Alice)
     io:format("~n--- ask-for-help(Bob, Alice) ---~n"),
     io:format("~p~n", [eflint:trigger(ask_for_help, #{child => "Bob", parent => "Alice"})]),
 
+    io:format("Is Help act enabled (true): ~p~n", [eflint:act_enabled(help, #{parent => "Alice", child => "Bob"})]),
+
     %% Before homework deadline — not violated
     io:format("~nViolated before deadline? ~p~n",
               [eflint:is_violated({help_with_homework, "Alice", "Bob"})]),
+
 
     %% +homework-due(Bob)
     io:format("~n--- +homework_due(Bob) ---~n"),
@@ -153,8 +158,11 @@ run() ->
     io:format("~p~n", [eflint:act_enabled(help, #{parent => "Alice", child => "Bob"})]),
 
     io:format("~n--- Final facts ---~n"),
-    eflint:dump(),
+    eflint:dump(facts),
+    eflint:dump(duties),
 
+    io:format("procces are still alive? ~p ~p~n", [is_pid(whereis(ask_for_help)), is_pid(whereis(help))]),
+    io:format("procces are still enalbed? ~p ~p~n", [eflint:act_enabled(ask_for_help, #{child => "Bob", parent => "Alice"}), eflint:act_enabled(help, #{parent => "Alice", child => "Bob"})]),
     ok.
 
 run_silent() ->

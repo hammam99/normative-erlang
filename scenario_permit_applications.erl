@@ -112,7 +112,7 @@ run() ->
     register(approve_proc, spawn(eflint, act_loop, [approve_act()])),
 
     io:format("~n--- Initial facts ---~n"),
-    eflint:dump(),
+    eflint:dump(facts),
 
     %% apply(Chloe, minister, "solar panels")
     io:format("~n--- apply(Chloe, minister, solar panels) ---~n"),
@@ -164,6 +164,6 @@ run() ->
     })]),
 
     io:format("~n--- Final facts ---~n"),
-    eflint:dump(),
+    eflint:dump(facts),
 
     ok.

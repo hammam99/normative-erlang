@@ -162,7 +162,7 @@ run() ->
     register(declare_winner, spawn(eflint, act_loop, [declare_winner_act()])),
 
     io:format("~n=== Voting Scenario ===~n"),
-    eflint:dump(),
+    eflint:dump(facts),
 
     %% enable-vote(Admin, Alice)
     io:format("~n--- enable-vote(Admin, Alice) ---~n"),
@@ -239,6 +239,6 @@ run() ->
     io:format("~n--- Final state ---~n"),
     io:format("winner? ~p~n", [eflint:all(winner)]),
     io:format("vote-concluded? ~p~n", [eflint:holds_predicate(vote_concluded)]),
-    eflint:dump(),
+    eflint:dump(facts),
 
     ok.
