@@ -264,9 +264,8 @@ holds_predicate(Name) ->
 %%%   }
 %%%
 %%% Results:
-%%%   disabled       — roles don't exist or holds_when failed (no power)
-%%%   {enabled, E}   — all checks passed
-%%%   {non_compliant, E} — holds_when passed but conditioned_by failed
+%%%   disabled       — roles don't exist or holds_when or condition_by failed (no power)
+%%%   {enabled, E}   — all checks passsed and effects E were executed
 
 act_loop(ActDef) ->
     Name = maps:get(name, ActDef),
@@ -275,8 +274,6 @@ act_loop(ActDef) ->
             case run_act(ActDef, Args) of
                 {enabled, Effects} ->
                     From ! {act_result, Name, {enabled, Effects}};
-                {non_compliant, Effects} ->
-                    From ! {act_result, Name, {non_compliant, Effects}};
                 disabled ->
                     From ! {act_result, Name, disabled}
             end,
@@ -304,7 +301,7 @@ run_act(ActDef, Args) ->
                 false -> disabled;
                 true ->
                     case check_conditioned_by(ActDef, Args) of
-                        false -> {non_compliant, []};
+                        false -> disabled;
                         true ->
                             Effects = execute(ActDef, Args),
                             {enabled, Effects}
