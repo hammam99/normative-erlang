@@ -264,7 +264,7 @@ holds_predicate(Name) ->
 %%%   }
 %%%
 %%% Results:
-%%%   disabled       — roles don't exist or holds_when or condition_by failed (no power)
+%%%   disabled       — roles don't exist or holds_when or conditioned_by failed (no power)
 %%%   {enabled, E}   — all checks passsed and effects E were executed
 
 act_loop(ActDef) ->
